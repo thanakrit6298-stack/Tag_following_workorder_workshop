@@ -419,6 +419,20 @@ body::before{
   <div class="ld-ring"></div>
   <div class="ld-txt">INITIALIZING · CONNECTING TO DATABASE</div>
 </div>
+<!-- Hide loading screen immediately — independent of Firebase -->
+<script>
+  (function(){
+    function forceHide(){ var l=document.getElementById('loading-screen'); if(l) l.style.display='none'; }
+    // Hide as soon as DOM is ready
+    if(document.readyState==='loading'){
+      document.addEventListener('DOMContentLoaded', forceHide);
+    } else {
+      forceHide();
+    }
+    // Nuclear fallback: force hide after 3s no matter what
+    setTimeout(forceHide, 3000);
+  })();
+</script>
 
 <!-- ══════════════ VIEWER MODE (QR SCAN) ══════════════ -->
 <div id="viewer">
@@ -580,10 +594,15 @@ const firebaseConfig = {
   messagingSenderId: "80900940748",
   appId:             "1:80900940748:web:0ab64b61d5bcc200fdf369"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const WO_REF = db.ref('workorders/items');
-const ST_REF = db.ref('workorders/settings');
+let db, WO_REF, ST_REF;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  WO_REF = db.ref('workorders/items');
+  ST_REF = db.ref('workorders/settings');
+} catch(e) {
+  console.error('Firebase init failed:', e);
+}
 
 /* ════ CONSTANTS ════ */
 const DEF_AREAS = ['Production A','Production B','Maintenance','QC / ตรวจสอบ','Warehouse','Engineering'];
@@ -610,8 +629,6 @@ let editKey=null,delKey=null;
 
 /* ════ ROUTER ════ */
 const WO_ID = new URLSearchParams(location.search).get('wo');
-// ✅ ซ่อน loading screen ทันทีที่ JS พร้อม ไม่รอ async
-hideLd();
 if(WO_ID){
   document.getElementById('shell').style.display='none';
   document.getElementById('viewer').style.display='block';
@@ -660,6 +677,13 @@ async function startDash(){
   // ✅ FIX 3: fallback — บังคับซ่อน loading ถ้ายังค้างอยู่หลัง 6 วินาที
   setTimeout(hideLd, 6000);
 
+  if(!db){
+    document.getElementById('content').innerHTML =
+      '<div class="empty-state"><div class="e-ico">⚠</div><div class="e-txt">FIREBASE NOT AVAILABLE</div>' +
+      '<div class="e-sub">Firebase SDK ยังไม่โหลด — ตรวจสอบอินเตอร์เน็ต แล้วรีเฟรช</div>' +
+      '<button class="btn btn-ghost" onclick="location.reload()" style="margin:14px auto 0">🔄 Reload</button></div>';
+    return;
+  }
   try {
     // Hash ของ workshop2024+WOS_v2_SALT — hardcode ไว้เลยไม่พึ่ง Firebase
     pwHash = '6895b9ae20a5198183073f46d0b4a70342a13d12add16250511737118b5f63fd';
