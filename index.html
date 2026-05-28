@@ -334,7 +334,7 @@ body::before{
 .c-row{display:flex;gap:8px;justify-content:center}
 
 /* ── LOADING SCREEN ── */
-#loading-screen{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .4s}
+#loading-screen{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px}
 #loading-screen.hidden{opacity:0;pointer-events:none}
 .ld-logo{font-family:var(--mono);font-size:11px;color:var(--cyan);letter-spacing:3px;display:flex;align-items:center;gap:8px}
 .ld-logo::before,.ld-logo::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--cyan));max-width:40px}
@@ -610,6 +610,8 @@ let editKey=null,delKey=null;
 
 /* ════ ROUTER ════ */
 const WO_ID = new URLSearchParams(location.search).get('wo');
+// ✅ ซ่อน loading screen ทันทีที่ JS พร้อม ไม่รอ async
+hideLd();
 if(WO_ID){
   document.getElementById('shell').style.display='none';
   document.getElementById('viewer').style.display='block';
@@ -647,10 +649,7 @@ function vwErr(msg){
    FIX: hideLd() เรียกทันที ไม่รอ Firebase callback
 ════════════════════════════════════════════════ */
 async function startDash(){
-  // ✅ FIX 1: ซ่อน loading screen ทันที ไม่รอ Firebase
-  hideLd();
-
-  // ✅ FIX 2: แสดง spinner เล็กๆ ใน content area แทน
+  // ✅ แสดง spinner เล็กๆ ใน content area ระหว่างรอ Firebase
   document.getElementById('content').innerHTML =
     '<div class="empty-state">' +
       '<div class="e-ring"></div>' +
@@ -951,7 +950,7 @@ function applyMode(){
 function clearSearch(){sq='';document.getElementById('search-input').value='';render();}
 function hideLd(){
   const l=document.getElementById('loading-screen');
-  if(l){ l.classList.add('hidden'); setTimeout(()=>l.style.display='none',400); }
+  if(l){ l.style.display='none'; }
 }
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function fmtDate(d){if(!d)return'';try{const dt=new Date(d);return isNaN(dt)?d:dt.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'numeric'});}catch(e){return d;}}
