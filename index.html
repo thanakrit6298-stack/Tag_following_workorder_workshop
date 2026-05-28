@@ -54,6 +54,17 @@ body::before{
 }
 
 ::-webkit-scrollbar{width:4px;height:4px}
+
+/* ── FILTER CHIPS ── */
+.filter-bar{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:10px 14px;background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);margin-bottom:10px}
+.fchip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:var(--mono);letter-spacing:.3px}
+.fchip-area{background:var(--cyan-lo);color:var(--cyan-hi);border:1px solid var(--cyan-bd)}
+.fchip-type{background:var(--blu-lo);color:var(--blu-hi);border:1px solid var(--blu-bd)}
+.fchip-st{background:var(--amb-lo);color:var(--amb-hi);border:1px solid var(--amb-bd)}
+.fchip-q{background:var(--grn-lo);color:var(--grn-hi);border:1px solid var(--grn-bd)}
+.fchip-x{background:transparent;border:none;color:inherit;cursor:pointer;font-size:11px;padding:0 2px;opacity:.7;line-height:1}
+.fchip-x:hover{opacity:1}
+.fcount{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--lo)}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
 
@@ -441,7 +452,9 @@ body::before{
     <div class="kpi-row k-hold" id="kpi-hold" onclick="setFilter('hold')"><span class="kpi-lbl">ON HOLD</span><span class="kpi-val" id="k-hold">0</span></div>
   </div>
   <div id="sb-nav">
-    <div class="nav-section">// Job Type</div>
+    <div class="nav-section">// พื้นที่ / Area</div>
+    <div id="nav-areas"></div>
+    <div class="nav-section" style="margin-top:6px">// ประเภทงาน / Job Type</div>
     <div id="nav-types"></div>
   </div>
 </div>
@@ -701,6 +714,17 @@ function updateKPI(){
 
 /* ── NAV ── */
 function buildNav(){
+  // Areas
+  const ea=document.getElementById('nav-areas'); ea.innerHTML='';
+  areas.forEach(a=>{
+    const n=wos.filter(w=>w.area===a).length;
+    const b=document.createElement('button');
+    b.className='nav-item'+(filter==='area:'+a?' active':'');
+    b.innerHTML='<span class="nav-ico">📍</span>'+esc(a)+'<span class="nav-ct">'+n+'</span>';
+    b.onclick=()=>{filter='area:'+a;updateKPI();buildNav();render();if(window.innerWidth<=768)closeSB();};
+    ea.appendChild(b);
+  });
+  // Job Types
   const el=document.getElementById('nav-types'); el.innerHTML='';
   jobTypes.forEach(t=>{
     const n=wos.filter(w=>w.jobType===t).length;
@@ -723,20 +747,34 @@ function render(){
   let list=wos;
   if(filter==='all'){}
   else if(filter.startsWith('type:')) list=list.filter(w=>w.jobType===filter.slice(5));
+  else if(filter.startsWith('area:')) list=list.filter(w=>w.area===filter.slice(5));
   else list=list.filter(w=>w.status===filter);
   const q=sq.toLowerCase();
   if(q) list=list.filter(w=>[w.jobName,w.woNumber,w.area,w.jobType,w.details,w.requestedBy].some(v=>(v||'').toLowerCase().includes(q)));
-  const lbl=filter==='all'?'ALL ORDERS ('+wos.length+')':(filter.startsWith('type:')?filter.slice(5).toUpperCase():(ST[filter]?.short||filter));
+  let lbl='ALL ORDERS ('+wos.length+')';
+  if(filter.startsWith('type:')) lbl='🔧 '+filter.slice(5)+' ('+list.length+')';
+  else if(filter.startsWith('area:')) lbl='📍 '+filter.slice(5)+' ('+list.length+')';
+  else if(filter!=='all') lbl=(ST[filter]?.short||filter)+' ('+list.length+')';
   document.getElementById('tb-cur').textContent=lbl;
   const el=document.getElementById('content');
+  // Filter chip bar
+  let chipBar='';
+  if(filter!=='all'||sq){
+    const chips=[];
+    if(filter.startsWith('area:')) chips.push('<span class="fchip fchip-area">📍 '+esc(filter.slice(5))+'<button onclick="setFilter('all')" class="fchip-x">✕</button></span>');
+    else if(filter.startsWith('type:')) chips.push('<span class="fchip fchip-type">🔧 '+esc(filter.slice(5))+'<button onclick="setFilter('all')" class="fchip-x">✕</button></span>');
+    else if(filter!=='all') chips.push('<span class="fchip fchip-st">'+esc(ST[filter]?.label||filter)+'<button onclick="setFilter('all')" class="fchip-x">✕</button></span>');
+    if(sq) chips.push('<span class="fchip fchip-q">🔍 "'+esc(sq)+'"<button onclick="clearSearch()" class="fchip-x">✕</button></span>');
+    chipBar='<div class="filter-bar">'+chips.join('')+'<span class="fcount">'+list.length+' รายการ</span></div>';
+  }
   if(!list.length){
-    el.innerHTML='<div class="empty-state">'+(wos.length===0?'<div class="e-ico">📋</div>':'<div class="e-ico">🔍</div>')+
+    el.innerHTML=chipBar+'<div class="empty-state">'+(wos.length===0?'<div class="e-ico">📋</div>':'<div class="e-ico">🔍</div>')+
     '<div class="e-txt">'+(wos.length===0?'NO WORK ORDERS FOUND':'NO RESULTS MATCH FILTER')+'</div>'+
     '<div class="e-sub">'+(wos.length===0?'Use NEW WORK ORDER to create the first record':'Try adjusting your search or filter criteria')+'</div>'+
     (wos.length===0&&isAdmin?'<button class="btn btn-cyan" onclick="openAdd()" style="margin:16px auto 0">+ NEW WORK ORDER</button>':'')+'</div>';
     return;
   }
-  el.innerHTML=list.map(woRow).join('');
+  el.innerHTML=chipBar+list.map(woRow).join('');
 }
 
 function woRow(wo){
@@ -869,7 +907,7 @@ function openSettings(){sTab='areas';editIdx=null;renderSL();document.getElement
 function closeSettings(){document.getElementById('set-modal').classList.remove('open');editIdx=null;}
 function switchTab(t){sTab=t;editIdx=null;document.getElementById('tab-a').classList.toggle('active',t==='areas');document.getElementById('tab-t').classList.toggle('active',t==='types');document.getElementById('new-item').value='';renderSL();}
 function curL(){return sTab==='areas'?areas:jobTypes;}
-function saveL(arr){if(sTab==='areas'){areas=arr;ST_REF.child('areas').set(arr);}else{jobTypes=arr;ST_REF.child('jobTypes').set(arr);buildNav();}}
+function saveL(arr){if(sTab==='areas'){areas=arr;ST_REF.child('areas').set(arr);}else{jobTypes=arr;ST_REF.child('jobTypes').set(arr);}buildNav();}
 function renderSL(){
   const items=curL(); const el=document.getElementById('set-list'); el.innerHTML='';
   items.forEach((item,i)=>{
@@ -910,6 +948,7 @@ function applyMode(){
 }
 
 /* ── HELPERS ── */
+function clearSearch(){sq='';document.getElementById('search-input').value='';render();}
 function hideLd(){
   const l=document.getElementById('loading-screen');
   if(l){ l.classList.add('hidden'); setTimeout(()=>l.style.display='none',400); }
